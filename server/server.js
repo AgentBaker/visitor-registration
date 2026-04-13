@@ -134,6 +134,11 @@ app.get('/ping', (req, res) => res.json({ ok: true }));
 
 const PORT = process.env.PORT;
 
+// fail fast if PORT missing (important for Render)
+if (!PORT) {
+  throw new Error("PORT is not defined");
+}
+
 app.listen(PORT, () => {
   console.log(`Server running on ${PORT}`);
 });
