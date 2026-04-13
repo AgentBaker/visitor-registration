@@ -132,5 +132,8 @@ app.get('/sessions', async (req, res) => {
 // health
 app.get('/ping', (req, res) => res.json({ ok: true }));
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on ${PORT}`));
+const PORT = process.env.PORT;
+
+app.listen(PORT, () => {
+  console.log(`Server running on ${PORT}`);
+});
