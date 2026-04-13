@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Admin Dashboard — Visitor Registration</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        /* Theme matched to visitor registration */
+        :root {
+            --bg: #0b2a4a;
+            --card: #123a63;
+            --accent: #27ae60;
+            --muted: #9fb6d6;
+            --surface: #0f3b63;
+            --white: #ffffff;
+            --panel-bg: #0f3b63;
+        }
+
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            font-family: "Segoe UI", Roboto, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--white);
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        h2 {
+            margin: 0 0 12px 0;
+            font-weight: 600;
+            letter-spacing: 0.6px;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: var(--card);
+            padding: 16px;
+            border-radius: 10px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+        }
+
+        .row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        input,
+        select {
+            padding: 8px 10px;
+            border-radius: 6px;
+            border: none;
+            width: 180px;
+            background: var(--surface);
+            color: var(--white);
+        }
+
+        button {
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            background: var(--accent);
+            color: var(--white);
+        }
+
+        .btn-ghost {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--white);
+        }
+
+        .small {
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #fff;
+            color: #000;
+            margin-top: 12px;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        th,
+        td {
+            padding: 10px 8px;
+            border-bottom: 1px solid #e6e6e6;
+            text-align: left;
+            font-size: 0.95rem;
+        }
+
+        th {
+            background: #f7f7f7;
+            color: #333;
+            font-weight: 600;
+        }
+
+        td.actions {
+            width: 120px;
+            text-align: center;
+        }
+
+        .empty {
+            padding: 18px;
+            color: var(--muted);
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 6px;
+            margin-top: 12px;
+        }
+
+        .error {
+            color: #ffcc00;
+            margin-top: 8px;
+        }
+
+        .attachment {
+            max-width: 120px;
+            max-height: 80px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+
+        .filter-controls {
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .pill {
+            background: rgba(255, 255, 255, 0.04);
+            padding: 6px 10px;
+            border-radius: 999px;
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        .view-btn {
+            background: #0b66a3;
+            padding: 6px 10px;
+            border-radius: 6px;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h2>Admin Dashboard</h2>
+
+        <div class="card">
+            <div class="row filter-controls">
+                <input id="from" type="date" placeholder="From">
+                <input id="to" type="date" placeholder="To">
+                <input id="hostFilter" placeholder="Host">
+                <button id="filterBtn" class="btn-ghost">Filter</button>
+                <button id="refreshBtn" class="btn-ghost">Refresh</button>
+                <div style="margin-left:auto" class="pill" id="summaryPill">Loading...</div>
+            </div>
+
+            <div id="errorMsg" class="error" aria-live="polite"></div>
+
+            <table id="sessionsTable" aria-live="polite">
+                <thead>
+                    <tr>
+                        <th>Session ID</th>
+                        <th>Host</th>
+                        <th>Department</th>
+                        <th>Date</th>
+                        <th>Arrival Time</th>
+                        <th>Visitors</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="sessionsBody">
+                    <!-- rows injected here -->
+                </tbody>
+            </table>
+
+            <div id="emptyState" class="empty" style="display:none">No sessions found for the selected filters.</div>
+        </div>
+
+        <div id="sessionDetailCard" class="card" style="display:none"></div>
+    </div>
+
+    script>
+    const sessionsBody = document.getElementById("sessionsBody");
+    const emptyState = document.getElementById("emptyState");
+    const errorMsg = document.getElementById("errorMsg");
+    const summaryPill = document.getElementById("summaryPill");
+    const sessionDetailCard = document.getElementById("sessionDetailCard");
+
+    document.getElementById("filterBtn").onclick = loadSessions;
+    document.getElementById("refreshBtn").onclick = loadSessions;
+
+    function showError(msg){ errorMsg.textContent = msg || ""; }
+    function showSummary(msg){ summaryPill.textContent = msg || ""; }
+
+    let allSessions = [];
+
+    async function loadSessions(){
+    showError("");
+    sessionsBody.innerHTML = "";
+    emptyState.style.display = "none";
+    showSummary("Loading...");
+
+    try{
+    const res = await fetch("/sessions");
+    const data = await res.json();
+
+    if(!res.ok) throw new Error(data.error);
+
+    allSessions = data;
+
+    if(!data.length){
+    emptyState.style.display = "block";
+    showSummary("0 sessions");
+    return;
+    }
+
+    data.forEach(s=>{
+    const count = s.visitors?.length || 0;
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+    <td>${s.id}</td>
+    <td>${s.host_employee}</td>
+    <td>${s.department}</td>
+    <td>${s.entry_date || ""}</td>
+    <td>${s.entry_time || ""}</td>
+    <td>${count}</td>
+    <td><button onclick="viewSession('${s.id}')">View</button></td>
+    `;
+    sessionsBody.appendChild(tr);
+    });
+
+    showSummary(`${data.length} sessions`);
+
+    }catch(err){
+    console.error(err);
+    showError(err.message);
+    showSummary("Error");
+    }
+    }
+
+    function viewSession(id){
+    const session = allSessions.find(s => s.id == id);
+    if(!session) return;
+
+    const visitors = session.visitors || [];
+
+    let html = `<h3>Session ${session.id}</h3>`;
+    html += `<div class="small">
+        Host: ${session.host_employee} |
+        Dept: ${session.department} |
+        Date: ${session.entry_date} ${session.entry_time}
+    </div>`;
+
+    html += `<table style="margin-top:12px">
+        <tr>
+            <th>#</th>
+            <th>Name</th>
+            <th>Contact</th>
+            <th>ID</th>
+            <th>Attachment</th>
+        </tr>`;
+
+        visitors.forEach((v,i)=>{
+        html += `
+        <tr>
+            <td>${i+1}</td>
+            <td>${v.fullname}</td>
+            <td>${v.contact_number}</td>
+            <td>${v.id_number}</td>
+            <td>${v.id_attachment_url ? `<img src="${v.id_attachment_url}" width="80">` : ""}</td>
+        </tr>
+        `;
+        });
+
+        html += "
+    </table>";
+
+    sessionDetailCard.innerHTML = html;
+    sessionDetailCard.style.display = "block";
+    }
+
+    // initial load
+    loadSessions();
+    </script>
+</body>
+
+</html>

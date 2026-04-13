@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Visitor Registration</title>
+
+    <style>
+        body {
+            font-family: 'Segoe UI';
+            background: #0b2a4a;
+            color: #fff;
+            padding: 20px;
+        }
+
+        .card {
+            background: #123a63;
+            padding: 16px;
+            border-radius: 10px;
+            margin-bottom: 16px;
+        }
+
+        .row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        input {
+            padding: 8px;
+            border-radius: 6px;
+            border: none;
+            width: 180px;
+            background: #e7ebf0;
+            color: #000;
+        }
+
+        button {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .btn-add {
+            background: #2ecc71;
+            color: #fff;
+        }
+
+        .btn-remove {
+            background: #e74c3c;
+            color: #fff;
+        }
+
+        .btn-save {
+            background: #27ae60;
+            color: #fff;
+            padding: 10px 16px;
+        }
+
+        table {
+            width: 100%;
+            background: #fff;
+            color: #000;
+            margin-top: 12px;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            padding: 8px;
+            border: 1px solid #ccc;
+            text-align: center;
+        }
+
+        .error {
+            color: #ffcc00;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h2>VISITOR REGISTRATION</h2>
+
+    <div class="card">
+        <h3>Visit Details</h3>
+        <div class="row">
+            <input id="host" placeholder="Host">
+            <input id="department" placeholder="Department">
+            <input id="purpose" placeholder="Purpose">
+            <input id="company" placeholder="Company">
+            <input id="date" type="date">
+            <input id="time" type="time">
+        </div>
+        <div id="visitErrors" class="error"></div>
+    </div>
+
+    <div class="card">
+        <h3>Add Visitor</h3>
+        <div class="row">
+            <input id="fullname" placeholder="Full Name">
+            <input id="contact" placeholder="Contact">
+            <input id="idNumber" placeholder="ID Number">
+            <input id="idFile" type="file">
+        </div>
+        <br>
+        <button class="btn-add" id="addBtn">+ ADD</button>
+        <div id="addErrors" class="error"></div>
+    </div>
+
+    <div class="card">
+        <h3>Visitor List (<span id="count">0</span>)</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Name</th>
+                    <th>Contact</th>
+                    <th>ID</th>
+                    <th>File</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="table"></tbody>
+        </table>
+    </div>
+
+    <button class="btn-save" id="saveBtn">SAVE ALL</button>
+
+    <script>
+        let visitors = [];
+
+        const tableEl = document.getElementById("table");
+        const countEl = document.getElementById("count");
+
+        document.getElementById("addBtn").onclick = () => {
+            const fullname = fullnameEl.value.trim();
+            const contact = contactEl.value.trim();
+            const idNumber = idNumberEl.value.trim();
+            const file = idFileEl.files[0];
+
+            if (!fullname || !contact || !idNumber) {
+                addErrors.textContent = "All fields required";
+                return;
+            }
+
+            visitors.push({
+                fullname,
+                contact_number: contact,
+                id_number: idNumber,
+                id_file: file
+            });
+
+            render();
+        };
+
+        const fullnameEl = document.getElementById("fullname");
+        const contactEl = document.getElementById("contact");
+        const idNumberEl = document.getElementById("idNumber");
+        const idFileEl = document.getElementById("idFile");
+        const addErrors = document.getElementById("addErrors");
+
+        function render() {
+            tableEl.innerHTML = "";
+            visitors.forEach((v, i) => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+            <td>${i + 1}</td>
+            <td>${v.fullname}</td>
+            <td>${v.contact_number}</td>
+            <td>${v.id_number}</td>
+            <td>${v.id_file ? "Yes" : ""}</td>
+            <td><button onclick="remove(${i})">X</button></td>
+        `;
+                tableEl.appendChild(tr);
+            });
+            countEl.innerText = visitors.length;
+        }
+
+        function remove(i) {
+            visitors.splice(i, 1);
+            render();
+        }
+
+        document.getElementById("saveBtn").onclick = saveAll;
+
+        async function saveAll() {
+            if (!visitors.length) {
+                alert("No visitors");
+                return;
+            }
+
+            const formData = new FormData();
+
+            formData.append("host", document.getElementById("host").value);
+            formData.append("department", document.getElementById("department").value);
+            formData.append("purpose", document.getElementById("purpose").value);
+            formData.append("company", document.getElementById("company").value);
+            formData.append("date", document.getElementById("date").value);
+            formData.append("time", document.getElementById("time").value);
+
+            formData.append("visitors", JSON.stringify(visitors));
+
+            visitors.forEach(v => {
+                if (v.id_file) formData.append("files", v.id_file);
+            });
+
+            try {
+                const res = await fetch("/save-visit", {
+                    method: "POST",
+                    body: formData
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    alert(data.error);
+                    return;
+                }
+
+                alert("Saved!");
+                visitors = [];
+                render();
+
+            } catch (e) {
+                alert("Network error");
+            }
+        }
+    </script>
+
+</body>
+
+</html>
