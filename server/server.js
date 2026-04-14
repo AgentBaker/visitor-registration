@@ -132,12 +132,7 @@ app.get('/sessions', async (req, res) => {
 // health
 app.get('/ping', (req, res) => res.json({ ok: true }));
 
-const PORT = process.env.PORT;
-
-// fail fast if PORT missing (important for Render)
-if (!PORT) {
-  throw new Error("PORT is not defined");
-}
+const PORT = process.env.PORT || 10000;
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on ${PORT}`);
