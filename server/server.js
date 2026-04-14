@@ -140,3 +140,12 @@ const PORT = process.env.PORT || 10000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on ${PORT}`);
 });
+// health
+app.get('/ping', (req, res) => {
+  res.status(200).json({ ok: true });
+});
+
+// ROOT ROUTE (THIS IS WHAT YOU ARE MISSING)
+app.get('/', (req, res) => {
+  res.send('API is running');
+});
