@@ -10,9 +10,14 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ✅ HEALTH CHECK FIRST (must respond instantly)
+// ✅ HEALTH CHECK (ONLY ONE)
 app.get('/ping', (req, res) => {
-  return res.status(200).json({ ok: true });
+  res.status(200).json({ ok: true });
+});
+
+// ✅ ROOT ROUTE
+app.get('/', (req, res) => {
+  res.send('API is running');
 });
 
 // multer
@@ -20,9 +25,6 @@ const upload = multer({
   dest: path.join(__dirname, 'tmp'),
   limits: { fileSize: 10 * 1024 * 1024 }
 });
-
-// 🔥 REMOVE global supabase ❌
-// const supabase = createClient(...)
 
 function getSupabase() {
   return createClient(
@@ -35,7 +37,7 @@ function getSupabase() {
 // POST
 app.post('/save-visit', upload.array('files'), async (req, res) => {
   try {
-    const supabase = getSupabase(); // ✅ lazy init
+    const supabase = getSupabase();
 
     const { host, department, purpose, company, date, time, visitors } = req.body;
     const parsedVisitors = JSON.parse(visitors);
@@ -106,7 +108,7 @@ app.post('/save-visit', upload.array('files'), async (req, res) => {
 // GET
 app.get('/sessions', async (req, res) => {
   try {
-    const supabase = getSupabase(); // ✅ lazy init
+    const supabase = getSupabase();
 
     const { data, error } = await supabase
       .from('visit_sessions')
@@ -134,18 +136,9 @@ app.get('/sessions', async (req, res) => {
   }
 });
 
-// start
+// START (LAST ALWAYS)
 const PORT = process.env.PORT || 10000;
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on ${PORT}`);
-});
-// health
-app.get('/ping', (req, res) => {
-  res.status(200).json({ ok: true });
-});
-
-// ROOT ROUTE (THIS IS WHAT YOU ARE MISSING)
-app.get('/', (req, res) => {
-  res.send('API is running');
 });
